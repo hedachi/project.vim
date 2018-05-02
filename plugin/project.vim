@@ -27,7 +27,7 @@ function! s:Project(filename) " <<<
         endif
     endif
     if !exists('g:proj_window_width')
-        let g:proj_window_width=24              " Default project window width
+        let g:proj_window_width=30              " Default project window width
     endif
     if !exists('g:proj_window_increment')
         let g:proj_window_increment=100         " Project Window width increment
@@ -390,6 +390,17 @@ function! s:Project(filename) " <<<
         endif
         return 1
     endfunction
+    ">>>
+    " s:DeleteEntry() <<<
+    function! s:DeleteEntry()
+      let fname=substitute(getline(line('.')), '\s*#.*', '', '') " Get rid of comments and whitespace before comment
+      let fname=substitute(fname, '^\s*\(.*\)', '\1', '') " Get rid of leading whitespace
+      let infoline = s:RecursivelyConstructDirectives(line('.'))
+      let dir = s:GetDir(infoline, '')
+      let fpath = dir.'/'.fname
+      call system('mv '.fpath.' $HOME/.Trash/')
+			call s:RefreshEntriesFromDir(0)
+    endfunction ">>>
     ">>>
     " s:DoFoldOrOpenEntry(cmd0, cmd1) <<<
     "   Used for double clicking. If the mouse is on a fold, open/close it. If
@@ -959,7 +970,7 @@ function! s:Project(filename) " <<<
                 copen
             endif
         else
-            silent! exec 'silent! vimgrep "'.pattern.'" '.fnames
+            silent! exec 'silent! vimgrep '.pattern.' '.fnames
             copen
         endif
     endfunction ">>>
@@ -984,6 +995,21 @@ function! s:Project(filename) " <<<
         let filter = substitute(a:info, '.*\<filter="\([^"]*\).*', '\1', '')
         if strlen(filter) == strlen(a:info) | let filter = a:parent_filter | endif
         return filter
+    endfunction
+    function! s:GetDir(info, home)
+        let c_d=substitute(a:info, '.*\<Directory=\(\(\\ \|\f\|:\)\+\).*', '\1', '')
+        if strlen(c_d) == strlen(a:info)
+            let c_d=substitute(a:info, '.*\<Directory="\(.\{-}\)".*', '\1', '')
+            if strlen(c_d) != strlen(a:info) | let c_d=escape(c_d, ' ') | endif
+        endif
+        if strlen(c_d) == strlen(a:info)
+            let c_d=''
+        elseif c_d == '.'
+            let c_d = a:home
+        elseif !s:IsAbsolutePath(c_d)
+            let c_d = a:home.'/'.c_d
+        endif
+        return c_d
     endfunction
     function! s:GetCd(info, home)
         let c_d=substitute(a:info, '.*\<CD=\(\(\\ \|\f\|:\)\+\).*', '\1', '')
@@ -1206,6 +1232,9 @@ function! s:Project(filename) " <<<
         nnoremap <buffer> <silent> <C-Down> \|:silent call <SID>MoveDown()<CR>
         nmap     <buffer> <silent> <LocalLeader><Up> <C-Up>
         nmap     <buffer> <silent> <LocalLeader><Down> <C-Down>
+        
+				nnoremap <buffer> <silent> <LocalLeader>D \|:call <SID>DeleteEntry()<CR>
+
         let k=1
         while k < 10
             exec 'nnoremap <buffer> <LocalLeader>'.k.'  \|:call <SID>Spawn('.k.')<CR>'
